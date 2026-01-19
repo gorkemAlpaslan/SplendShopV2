@@ -16,7 +16,7 @@ export default function ScrollReveal({
   direction = 'up',
   className = '',
 }: ScrollRevealProps) {
-  const ref = useRef(null);
+  const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: '300px' });
   const [isVisible, setIsVisible] = useState(false);
 

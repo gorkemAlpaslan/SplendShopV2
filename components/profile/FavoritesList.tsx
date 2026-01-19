@@ -41,7 +41,7 @@ export default function FavoritesList() {
   };
 
   const handleAddToCart = (productId: string) => {
-    const product = PRODUCTS.find((p) => p.id === productId);
+    const product = products.find((p) => p.id === productId);
     if (product) {
       addItem(product);
     }

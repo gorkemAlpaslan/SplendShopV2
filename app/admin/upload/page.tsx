@@ -87,12 +87,12 @@ export default function AdminUploadPage() {
                             </ul>
                         </div>
                         <div className="space-y-3">
-                            <Button onClick={handleClearAndUpload} size="lg" className="w-full" variant="default">
+                            <Button onClick={handleClearAndUpload} size="lg" className="w-full" variant="primary">
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Clear Database & Upload Products
                             </Button>
                             <div className="flex gap-3">
-                                <Button onClick={handleClearOnly} size="lg" variant="destructive" className="flex-1">
+                                <Button onClick={handleClearOnly} size="lg" variant="primary" className="flex-1 bg-red-600 hover:bg-red-700 text-white">
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Clear Only
                                 </Button>
