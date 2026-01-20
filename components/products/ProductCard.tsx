@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatPrice, calculateDiscountPrice } from '@/lib/utils';
 import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import LoginModal from '@/components/auth/LoginModal';
+import { getUserFavorites, addUserFavorite, removeUserFavorite } from '@/lib/firestore/users';
 
 interface ProductCardProps {
   product: Product;
@@ -17,8 +20,28 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
+  const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loadingFavorite, setLoadingFavorite] = useState(false);
+
+  // Load favorite status from Firebase
+  useEffect(() => {
+    async function loadFavoriteStatus() {
+      if (user) {
+        try {
+          const favorites = await getUserFavorites(user.uid);
+          setIsFavorite(favorites.includes(product.id));
+        } catch (error) {
+          console.error('Failed to load favorite status:', error);
+        }
+      } else {
+        setIsFavorite(false);
+      }
+    }
+    loadFavoriteStatus();
+  }, [user, product.id]);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -26,19 +49,29 @@ export default function ProductCard({ product }: ProductCardProps) {
     addItem(product);
   };
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
 
-    // Save to localStorage
-    const favorites = JSON.parse(localStorage.getItem('FavoriteProducts') || '[]');
-    if (isFavorite) {
-      const updated = favorites.filter((id: string) => id !== product.id);
-      localStorage.setItem('FavoriteProducts', JSON.stringify(updated));
-    } else {
-      favorites.push(product.id);
-      localStorage.setItem('FavoriteProducts', JSON.stringify([...new Set(favorites)]));
+    // Check if user is logged in
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    setLoadingFavorite(true);
+    try {
+      if (isFavorite) {
+        await removeUserFavorite(user.uid, product.id);
+        setIsFavorite(false);
+      } else {
+        await addUserFavorite(user.uid, product.id);
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    } finally {
+      setLoadingFavorite(false);
     }
   };
 
@@ -91,7 +124,8 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Favorite Button */}
         <button
           onClick={handleToggleFavorite}
-          className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-300 z-20 ${isFavorite ? 'text-red-500 bg-white shadow-sm' : 'text-foreground/60 hover:text-foreground hover:bg-white/50'}`}
+          disabled={loadingFavorite}
+          className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-300 z-20 ${isFavorite ? 'text-red-500 bg-white shadow-sm' : 'text-foreground/60 hover:text-foreground hover:bg-white/50'} ${loadingFavorite ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Heart size={18} className={isFavorite ? 'fill-current' : ''} />
         </button>
@@ -127,6 +161,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         </Link>
       </div>
+
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+      />
     </div>
   );
 }

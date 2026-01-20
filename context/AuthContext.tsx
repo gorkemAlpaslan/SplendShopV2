@@ -40,14 +40,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     setLoading(true);
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        setUser({
+        // Basic user info
+        const userData: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
-        });
+        };
+        setUser(userData);
+        
+        // Sync with Firestore (create if not exists)
+        // We import dynamically to avoid circular dependencies if any, 
+        // though standard import is fine here.
+        try {
+          const { syncUser } = await import('@/lib/firestore/users');
+          await syncUser(userData);
+        } catch (err) {
+            console.error("Error syncing user to Firestore:", err);
+        }
+
       } else {
         setUser(null);
       }
@@ -64,12 +77,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName: name });
-      setUser({
+      const newUser: User = {
         uid: cred.user.uid,
         email: cred.user.email,
         displayName: name,
         photoURL: cred.user.photoURL,
-      });
+      };
+      
+      setUser(newUser);
+      
+      const { syncUser } = await import('@/lib/firestore/users');
+      await syncUser(newUser);
     } catch (err: any) {
       setError(err.message);
       throw err;

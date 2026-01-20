@@ -19,6 +19,7 @@ export interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  addresses?: Address[];
 }
 
 export interface CartItem {

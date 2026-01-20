@@ -11,19 +11,25 @@ import ColorSelector from '@/components/products/ColorSelector';
 import Accordion from '@/components/ui/Accordion';
 import Button from '@/components/ui/Button';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { useProduct } from '@/hooks/useProducts';
 import { formatPrice, calculateDiscountPrice } from '@/lib/utils';
 import { Star, ShoppingBag, Heart, ArrowLeft, Truck, RefreshCw, ShieldCheck, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import LoginModal from '@/components/auth/LoginModal';
+import { getUserFavorites, addUserFavorite, removeUserFavorite } from '@/lib/firestore/users';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { addItem } = useCart();
+  const { user } = useAuth();
   const { product, loading, error } = useProduct(params.id as string);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loadingFavorite, setLoadingFavorite] = useState(false);
 
   useEffect(() => {
     if (product && product.colors.length > 0) {
@@ -32,11 +38,20 @@ export default function ProductDetailPage() {
   }, [product]);
 
   useEffect(() => {
-    if (product) {
-      const favorites = JSON.parse(localStorage.getItem('FavoriteProducts') || '[]');
-      setIsFavorite(favorites.includes(product.id));
+    async function loadFavoriteStatus() {
+      if (product && user) {
+        try {
+          const favorites = await getUserFavorites(user.uid);
+          setIsFavorite(favorites.includes(product.id));
+        } catch (error) {
+          console.error('Failed to load favorite status:', error);
+        }
+      } else {
+        setIsFavorite(false);
+      }
     }
-  }, [product]);
+    loadFavoriteStatus();
+  }, [product, user]);
 
   if (loading) {
     return (
@@ -81,16 +96,25 @@ export default function ProductDetailPage() {
     addItem(product);
   };
 
-  const handleToggleFavorite = () => {
-    const favorites = JSON.parse(localStorage.getItem('FavoriteProducts') || '[]');
-    if (isFavorite) {
-      const updated = favorites.filter((id: string) => id !== product.id);
-      localStorage.setItem('FavoriteProducts', JSON.stringify(updated));
-      setIsFavorite(false);
-    } else {
-      favorites.push(product.id);
-      localStorage.setItem('FavoriteProducts', JSON.stringify([...new Set(favorites)]));
-      setIsFavorite(true);
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    setLoadingFavorite(true);
+    try {
+      if (isFavorite) {
+        await removeUserFavorite(user.uid, product.id);
+        setIsFavorite(false);
+      } else {
+        await addUserFavorite(user.uid, product.id);
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    } finally {
+      setLoadingFavorite(false);
     }
   };
 
@@ -193,10 +217,11 @@ export default function ProductDetailPage() {
                   </Button>
                   <button
                     onClick={handleToggleFavorite}
+                    disabled={loadingFavorite}
                     className={`h-14 w-14 rounded-xl border flex items-center justify-center transition-all ${isFavorite
                       ? 'border-red-200 bg-red-50 text-red-500'
                       : 'border-input hover:border-black hover:bg-secondary'
-                      }`}
+                      } ${loadingFavorite ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <Heart className={isFavorite ? 'fill-current' : ''} size={24} />
                   </button>
@@ -251,6 +276,10 @@ export default function ProductDetailPage() {
         </div>
       </main>
       <Footer />
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+      />
     </div>
   );
 }

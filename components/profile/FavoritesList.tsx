@@ -8,20 +8,38 @@ import { useProducts } from '@/hooks/useProducts';
 import { formatPrice, calculateDiscountPrice } from '@/lib/utils';
 import { Heart, ShoppingCart, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
+import { getUserFavorites, removeUserFavorite } from '@/lib/firestore/users';
 
 export default function FavoritesList() {
   const { addItem } = useCart();
+  const { user } = useAuth();
   const { products, loading } = useProducts();
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
 
   useEffect(() => {
-    const favorites = JSON.parse(localStorage.getItem('FavoriteProducts') || '[]');
-    setFavoriteIds(favorites);
-  }, []);
+    async function loadFavorites() {
+      if (user) {
+        try {
+          const favorites = await getUserFavorites(user.uid);
+          setFavoriteIds(favorites);
+        } catch (error) {
+          console.error('Failed to load favorites:', error);
+        } finally {
+          setLoadingFavorites(false);
+        }
+      } else {
+        setFavoriteIds([]);
+        setLoadingFavorites(false);
+      }
+    }
+    loadFavorites();
+  }, [user]);
 
   const favorites = products.filter((product) => favoriteIds.includes(product.id));
 
-  if (loading) {
+  if (loading || loadingFavorites) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -34,10 +52,15 @@ export default function FavoritesList() {
     );
   }
 
-  const handleRemoveFavorite = (productId: string) => {
-    const updated = favoriteIds.filter((id) => id !== productId);
-    setFavoriteIds(updated);
-    localStorage.setItem('FavoriteProducts', JSON.stringify(updated));
+  const handleRemoveFavorite = async (productId: string) => {
+    if (!user) return;
+    
+    try {
+      await removeUserFavorite(user.uid, productId);
+      setFavoriteIds(prev => prev.filter(id => id !== productId));
+    } catch (error) {
+      console.error('Failed to remove favorite:', error);
+    }
   };
 
   const handleAddToCart = (productId: string) => {

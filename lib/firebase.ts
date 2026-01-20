@@ -3,12 +3,12 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC4MbIBT2AiXzkgJRWQBwnY2TfPLO10o1c",
-  authDomain: "splendshop-35b3b.firebaseapp.com",
-  projectId: "splendshop-35b3b",
-  storageBucket: "splendshop-35b3b.appspot.com",
-  messagingSenderId: "582674629138",
-  appId: "1:582674629138:web:0ca46ef9648d13094b0ecb",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
